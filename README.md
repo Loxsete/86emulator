@@ -9,7 +9,7 @@ This is a simple 8086 emulator with a graphical interface that allows you to:
 
     View CPU registers and memory contents
 
-    Display both text mode (80x25) and graphics mode (320x200) output
+    Display both text mode (80x25) and graphics mode (320x200 or 640x480) output
 
 Features
 
