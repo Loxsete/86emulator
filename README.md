@@ -31,13 +31,8 @@ Features
 
 Requirements
 
-    SDL2
+    Alergo
 
-    SDL2_ttf
-
-    tinyfiledialogs
-
-    A TrueType font (either arial.ttf or DejaVuSans.ttf)
 
 Building
 
