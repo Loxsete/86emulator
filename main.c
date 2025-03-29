@@ -5,6 +5,7 @@
 #include <allegro5/allegro_font.h>
 #include <allegro5/allegro_ttf.h>
 #include <allegro5/allegro_primitives.h>
+#include <allegro5/allegro_native_dialog.h>
 
 // CPU structure
 typedef struct {
@@ -211,7 +212,6 @@ void get_vga_color(uint8_t color, uint8_t *r, uint8_t *g, uint8_t *b) {
     *b = (color & 0x03) << 6;
 }
 
-
 int main(int argc, char *argv[]) {
     if (!al_init()) {
         fprintf(stderr, "Failed to initialize Allegro\n");
@@ -248,21 +248,13 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Попытка загрузить шрифт с обработкой ошибки
-    ALLEGRO_FONT *font = al_load_ttf_font("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 16, 0);
+    // Используем встроенный шрифт Allegro
+    ALLEGRO_FONT *font = al_create_builtin_font();
     if (!font) {
-        fprintf(stderr, "Failed to load font from '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'. "
-                       "Please ensure the font is installed or use a different font path.\n");
-        // Попробуем альтернативный шрифт
-        font = al_load_ttf_font("/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf", 16, 0);
-        if (!font) {
-            fprintf(stderr, "Failed to load fallback font. Exiting.\n");
-            al_destroy_event_queue(queue);
-            al_destroy_display(display);
-            return 1;
-        } else {
-            fprintf(stderr, "Using fallback font: LiberationMono-Regular.ttf\n");
-        }
+        fprintf(stderr, "Failed to create built-in font\n");
+        al_destroy_event_queue(queue);
+        al_destroy_display(display);
+        return 1;
     }
 
     al_register_event_source(queue, al_get_display_event_source(display));
@@ -287,9 +279,17 @@ int main(int argc, char *argv[]) {
                 button_pressed = 1;
                 int x = event.mouse.x, y = event.mouse.y;
                 if (x >= 50 && x <= 250 && y >= 20 && y <= 70) { // Select button
-                    printf("Enter .img file path: ");
-                    scanf("%255s", filename);
-                    image_loaded = load_image(&cpu, filename);
+                    ALLEGRO_FILECHOOSER *file_chooser = al_create_native_file_dialog(
+                        ".", "Select .img file", "*.img", ALLEGRO_FILECHOOSER_FILE_MUST_EXIST);
+                    
+                    if (al_show_native_file_dialog(display, file_chooser)) {
+                        if (al_get_native_file_dialog_count(file_chooser) > 0) {
+                            const char *selected = al_get_native_file_dialog_path(file_chooser, 0);
+                            strncpy(filename, selected, sizeof(filename) - 1);
+                            image_loaded = load_image(&cpu, filename);
+                        }
+                    }
+                    al_destroy_native_file_dialog(file_chooser);
                 }
                 if (x >= 300 && x <= 500 && y >= 20 && y <= 70 && image_loaded) // Start button
                     emulation_running = !emulation_running;
@@ -308,6 +308,7 @@ int main(int argc, char *argv[]) {
         ALLEGRO_MOUSE_STATE mouse_state;
         al_get_mouse_state(&mouse_state);
 
+        // Draw Select button
         al_draw_filled_rectangle(50, 20, 250, 70, 
             button_pressed && al_mouse_button_down(&mouse_state, 1) && 
             al_get_mouse_state_axis(&mouse_state, 0) >= 50 && 
@@ -316,6 +317,7 @@ int main(int argc, char *argv[]) {
             al_get_mouse_state_axis(&mouse_state, 1) <= 70 
             ? al_map_rgb(150, 150, 150) : al_map_rgb(100, 100, 100));
         
+        // Draw Start/Stop button
         al_draw_filled_rectangle(300, 20, 500, 70, 
             button_pressed && al_mouse_button_down(&mouse_state, 1) && 
             al_get_mouse_state_axis(&mouse_state, 0) >= 300 && 
