@@ -44,7 +44,7 @@ Building
 Compile with:
 Copy
 
-gcc emulator.c -o emulator -lSDL2 -lSDL2_ttf -ltinyfiledialogs
+gcc -o emulator main.c -lallegro -lallegro_font -lallegro_ttf -lallegro_primitives -lallegro_dialog
 
 Usage
 
