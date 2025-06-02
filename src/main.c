@@ -6,7 +6,7 @@
 int main(void) {
     CPU8086 cpu;
     init_cpu(&cpu);
-    
+
     if (!load_firmware(&cpu, "bin/proshivka.bin")) {
         return 1;
     }
@@ -29,7 +29,6 @@ int main(void) {
     const int screen_y = (window_height - screen_height_pixels) / 2 + 20;
 
     bool auto_run = true;
-
     unsigned long instruction_count = 0;
     float ops_timer = 0.0f;
     float ops = 0.0f;
@@ -39,7 +38,6 @@ int main(void) {
         float delta_time = GetFrameTime();
         ops_timer += delta_time;
 
-        
         if (IsKeyPressed(KEY_A)) {
             auto_run = !auto_run;
         }
@@ -51,15 +49,12 @@ int main(void) {
             cpu.kb_status |= 0x01;
         }
 
-        
         if (!auto_run && IsKeyPressed(KEY_SPACE) && cpu.running) {
             execute_instruction(&cpu);
             instruction_count++;
         }
 
-        
         if (auto_run && cpu.running) {
-            
             for (int i = 0; i < 100000; i++) {
                 if (!cpu.running) break;
                 execute_instruction(&cpu);
@@ -67,24 +62,36 @@ int main(void) {
             }
         }
 
-        
         if (ops_timer >= ops_update_interval) {
             ops = instruction_count / ops_timer;
             instruction_count = 0;
             ops_timer = 0.0f;
         }
 
+        // === GUI Rendering ===
         BeginDrawing();
         ClearBackground(DARKGRAY);
 
-        char ops_text[32];
-        snprintf(ops_text, sizeof(ops_text), "OPS: %.0f", ops);
-        Vector2 text_size = MeasureTextEx(font, ops_text, char_height, 1);
-        DrawTextEx(font, ops_text, 
-                   (Vector2){(window_width - text_size.x) / 2, screen_y - char_height - 5}, 
-                   char_height, 1, WHITE);
+        
+        const char *title = "8086 Emulator";
+        Vector2 title_size = MeasureTextEx(font, title, 24, 2);
+        DrawTextEx(font, title, 
+                   (Vector2){(window_width - title_size.x) / 2, 10}, 
+                   24, 2, RAYWHITE);
+
+       
+        DrawRectangle(screen_x - 4, screen_y - 4, screen_width_pixels + 8, screen_height_pixels + 8, BLACK); 
+        DrawRectangle(screen_x - 2, screen_y - 2, screen_width_pixels + 4, screen_height_pixels + 4, GRAY);   
 
         draw_screen(&cpu, screen_x, screen_y, char_width, char_height, font);
+
+        
+        DrawRectangle(0, window_height - 30, window_width, 30, Fade(BLACK, 0.6f));
+        char status_text[128];
+        snprintf(status_text, sizeof(status_text), "[%s]  OPS: %.0f  |  [A]uto-run: %s  |  [SPACE] Step",
+                 cpu.running ? "RUNNING" : "HALTED", ops, auto_run ? "ON" : "OFF");
+        DrawTextEx(font, status_text, (Vector2){10, window_height - 24}, 18, 1, GREEN);
+
         EndDrawing();
     }
 
