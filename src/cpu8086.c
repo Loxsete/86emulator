@@ -190,7 +190,7 @@ void execute_instruction(CPU8086* cpu) {
             }
             cpu->cx = cpu->memory[addr + 1] | (cpu->memory[addr + 2] << 8);
             cpu->ip += 2;
-            update_flags(cpu, cpu->ax);
+            update_flags(cpu, cpu->cx);
             break;
         case 0xBA: // MOV DX, imm16
             if (!check_memory_bounds(addr, 3, MEMORY_SIZE)) {
@@ -327,7 +327,7 @@ void execute_instruction(CPU8086* cpu) {
                 uint16_t mem_addr = cpu->memory[addr + 2] | (cpu->memory[addr + 3] << 8);
                 uint32_t phys_addr = get_physical_addr(cpu->ds, mem_addr);
                 if (check_memory_bounds(phys_addr, 2, MEMORY_SIZE)) {
-                    cpu->ax = cpu->memory[phys_addr] | (cpu->memory[addr + 1] << 8);
+                    cpu->ax = cpu->memory[phys_addr] | (cpu->memory[phys_addr + 1] << 8);
                     cpu->ip += 3;
                     update_flags(cpu, cpu->ax);
                 } else {
@@ -346,7 +346,7 @@ void execute_instruction(CPU8086* cpu) {
                 return;
             }
             modrm = cpu->memory[addr + 1];
-            if (modrm == 0x06) {
+            if (modrm == 0x06) { // Direct address
                 uint16_t mem_addr = cpu->memory[addr + 2] | (cpu->memory[addr + 3] << 8);
                 uint32_t phys_addr = get_physical_addr(cpu->ds, mem_addr);
                 if (check_memory_bounds(phys_addr, 2, MEMORY_SIZE)) {
@@ -355,6 +355,19 @@ void execute_instruction(CPU8086* cpu) {
                     cpu->flags.carry = (result > 0xFFFF) ? 1 : 0;
                     cpu->ax = result & 0xFFFF;
                     cpu->ip += 3;
+                    update_flags(cpu, cpu->ax);
+                } else {
+                    fprintf(stderr, "Address out of memory: 0x%05X\n", phys_addr);
+                    cpu->running = 0;
+                }
+            } else if (modrm == 0x04) { // Addressing via SI
+                uint32_t phys_addr = get_physical_addr(cpu->ds, cpu->si);
+                if (check_memory_bounds(phys_addr, 2, MEMORY_SIZE)) {
+                    uint16_t val = cpu->memory[phys_addr] | (cpu->memory[phys_addr + 1] << 8);
+                    uint32_t result = cpu->ax + val;
+                    cpu->flags.carry = (result > 0xFFFF) ? 1 : 0;
+                    cpu->ax = result & 0xFFFF;
+                    cpu->ip += 1; // Only 2 bytes: opcode + ModR/M
                     update_flags(cpu, cpu->ax);
                 } else {
                     fprintf(stderr, "Address out of memory: 0x%05X\n", phys_addr);
