@@ -18,6 +18,9 @@ C_SRC = $(SRC_DIR)/main.c $(SRC_DIR)/cpu8086.c
 OBJ = $(C_SRC:.c=.o)
 EMULATOR = emulator
 
+# Заголовочные файлы
+HEADERS = $(INCLUDE_DIR)/cpu8086.h $(INCLUDE_DIR)/main.h
+
 # Цели
 all: $(BIN) $(EMULATOR)
 
@@ -29,8 +32,8 @@ $(BIN): $(ASM_SRC) | $(BIN_DIR)
 $(EMULATOR): $(OBJ) | $(BIN_DIR)
 	$(CC) $(OBJ) -o $@ $(LDFLAGS)
 
-# Компиляция исходных C-файлов
-$(SRC_DIR)/%.o: $(SRC_DIR)/%.c | $(BIN_DIR)
+# Компиляция исходных C-файлов с зависимостями от заголовков
+$(SRC_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS) | $(BIN_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Создание папки bin, если не существует
@@ -41,5 +44,8 @@ $(BIN_DIR):
 clean:
 	rm -rf $(BIN_DIR)/*.o $(BIN) $(EMULATOR)
 
+# Принуждение пересборки (для тестирования)
+rebuild: clean all
+
 # Фиктивные цели
-.PHONY: all clean
+.PHONY: all clean rebuild

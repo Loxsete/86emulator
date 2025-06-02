@@ -49,4 +49,4 @@ no_carry_label:
     MOV word [DI + 2], 0x074E
 
 end:
-    HLT
+    JMP $

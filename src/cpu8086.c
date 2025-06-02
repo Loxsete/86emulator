@@ -66,7 +66,9 @@ void update_flags(CPU8086* cpu, uint16_t result) {
         parity_count += (low_byte >> i) & 1;
     }
     cpu->flags.parity = (parity_count % 2) == 0;
+    cpu->flags.auxiliary = 0; 
 }
+
 
 void push(CPU8086* cpu, uint16_t value) {
     cpu->sp -= 2;
@@ -612,6 +614,48 @@ void execute_instruction(CPU8086* cpu) {
             cpu->flags.auxiliary = (flags_val >> 5) & 0x01;
             cpu->flags.interrupt = (flags_val >> 6) & 0x01;
             cpu->pic_isr = 0;
+            break;
+		case 0xBC: // MOV SP, imm16
+		    if (!check_memory_bounds(addr, 3, MEMORY_SIZE)) {
+		        fprintf(stderr, "Insufficient memory for MOV SP, imm16 at 0x%05X\n", addr);
+		        cpu->running = 0;
+		        return;
+		    }
+		    cpu->sp = cpu->memory[addr + 1] | (cpu->memory[addr + 2] << 8);
+		    cpu->ip += 2;
+		    update_flags(cpu, cpu->sp);
+		    break;
+        case 0x01: // ADD r/m16, r16
+            if (!check_memory_bounds(addr, 2, MEMORY_SIZE)) {
+                fprintf(stderr, "Insufficient memory for ADD r/m16, r16 at 0x%05X\n", addr);
+                cpu->running = 0;
+                return;
+            }
+            modrm = cpu->memory[addr + 1];
+            if (modrm == 0x06) { // Direct address: ADD [mem], AX
+                if (!check_memory_bounds(addr, 4, MEMORY_SIZE)) {
+                    fprintf(stderr, "Insufficient memory for ADD [mem], AX at 0x%05X\n", addr);
+                    cpu->running = 0;
+                    return;
+                }
+                uint16_t mem_addr = cpu->memory[addr + 2] | (cpu->memory[addr + 3] << 8);
+                uint32_t phys_addr = get_physical_addr(cpu->ds, mem_addr);
+                if (check_memory_bounds(phys_addr, 2, MEMORY_SIZE)) {
+                    uint16_t val = cpu->memory[phys_addr] | (cpu->memory[phys_addr + 1] << 8);
+                    uint32_t result = val + cpu->ax;
+                    cpu->flags.carry = (result > 0xFFFF) ? 1 : 0;
+                    cpu->memory[phys_addr] = result & 0xFF;
+                    cpu->memory[phys_addr + 1] = (result >> 8) & 0xFF;
+                    cpu->ip += 3;
+                    update_flags(cpu, result & 0xFFFF);
+                } else {
+                    fprintf(stderr, "Address out of memory: 0x%05X\n", phys_addr);
+                    cpu->running = 0;
+                }
+            } else {
+                fprintf(stderr, "Unknown operand for ADD: 0x%02X at 0x%05X\n", modrm, addr);
+                cpu->running = 0;
+            }
             break;
         default:
             fprintf(stderr, "Unknown instruction: 0x%02X at 0x%05X\n", opcode, addr);
